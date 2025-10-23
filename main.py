@@ -20,7 +20,7 @@ import requests
 import yaml
 
 
-VERSION = "3.0.1"
+VERSION = "3.0.3"
 
 
 # === SMTP邮件配置 ===
@@ -380,34 +380,36 @@ class PushRecordManager:
         """检查当前时间是否在指定时间范围内"""
         now = get_beijing_time()
         current_time = now.strftime("%H:%M")
-    
+
         def normalize_time(time_str: str) -> str:
             """将时间字符串标准化为 HH:MM 格式"""
             try:
                 parts = time_str.strip().split(":")
                 if len(parts) != 2:
                     raise ValueError(f"时间格式错误: {time_str}")
-            
+
                 hour = int(parts[0])
                 minute = int(parts[1])
-            
+
                 if not (0 <= hour <= 23 and 0 <= minute <= 59):
                     raise ValueError(f"时间范围错误: {time_str}")
-            
+
                 return f"{hour:02d}:{minute:02d}"
             except Exception as e:
                 print(f"时间格式化错误 '{time_str}': {e}")
                 return time_str
-    
+
         normalized_start = normalize_time(start_time)
         normalized_end = normalize_time(end_time)
         normalized_current = normalize_time(current_time)
-    
+
         result = normalized_start <= normalized_current <= normalized_end
-    
+
         if not result:
-            print(f"时间窗口判断：当前 {normalized_current}，窗口 {normalized_start}-{normalized_end}")
-    
+            print(
+                f"时间窗口判断：当前 {normalized_current}，窗口 {normalized_start}-{normalized_end}"
+            )
+
         return result
 
 
@@ -2231,7 +2233,7 @@ def render_html_content(
     if report_data["new_titles"]:
         html += f"""
                 <div class="new-section">
-                    <div class="new-section-title">本次新增热点 (共 {report_data['total_new_count']} 条)</div>"""
+                    <div class="new-section-title">本次新增热点 (共 {report_data["total_new_count"]} 条)</div>"""
 
         for source_data in report_data["new_titles"]:
             escaped_source = html_escape(source_data["source_name"])
@@ -2303,7 +2305,7 @@ def render_html_content(
         html += f"""
                     <br>
                     <span style="color: #ea580c; font-weight: 500;">
-                        发现新版本 {update_info['remote_version']}，当前版本 {update_info['current_version']}
+                        发现新版本 {update_info["remote_version"]}，当前版本 {update_info["current_version"]}
                     </span>"""
 
     html += """
@@ -3677,7 +3679,7 @@ def send_to_email(
 TrendRadar 热点分析报告
 ========================
 报告类型：{report_type}
-生成时间：{now.strftime('%Y-%m-%d %H:%M:%S')}
+生成时间：{now.strftime("%Y-%m-%d %H:%M:%S")}
 
 请使用支持HTML的邮件客户端查看完整报告内容。
         """
@@ -3760,10 +3762,10 @@ def send_to_ntfy(
         "当日汇总": "Daily Summary",
         "当前榜单汇总": "Current Ranking",
         "增量更新": "Incremental Update",
-        "实时增量": "Realtime Incremental", 
-        "实时当前榜单": "Realtime Current Ranking",  
+        "实时增量": "Realtime Incremental",
+        "实时当前榜单": "Realtime Current Ranking",
     }
-    report_type_en = report_type_en_map.get(report_type, "News Report") 
+    report_type_en = report_type_en_map.get(report_type, "News Report")
 
     headers = {
         "Content-Type": "text/plain; charset=utf-8",
@@ -3775,7 +3777,7 @@ def send_to_ntfy(
 
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    
+
     # 构建完整URL，确保格式正确
     base_url = server_url.rstrip("/")
     if not base_url.startswith(("http://", "https://")):
@@ -3797,7 +3799,7 @@ def send_to_ntfy(
     # 反转批次顺序，使得在ntfy客户端显示时顺序正确
     # ntfy显示最新消息在上面，所以我们从最后一批开始推送
     reversed_batches = list(reversed(batches))
-    
+
     print(f"ntfy将按反向顺序推送（最后批次先推送），确保客户端显示顺序正确")
 
     # 逐批发送（反向顺序）
@@ -3805,7 +3807,7 @@ def send_to_ntfy(
     for idx, batch_content in enumerate(reversed_batches, 1):
         # 计算正确的批次编号（用户视角的编号）
         actual_batch_num = total_batches - idx + 1
-        
+
         batch_size = len(batch_content.encode("utf-8"))
         print(
             f"发送ntfy第 {actual_batch_num}/{total_batches} 批次（推送顺序: {idx}/{total_batches}），大小：{batch_size} 字节 [{report_type}]"
@@ -3813,7 +3815,9 @@ def send_to_ntfy(
 
         # 检查消息大小，确保不超过4KB
         if batch_size > 4096:
-            print(f"警告：ntfy第 {actual_batch_num} 批次消息过大（{batch_size} 字节），可能被拒绝")
+            print(
+                f"警告：ntfy第 {actual_batch_num} 批次消息过大（{batch_size} 字节），可能被拒绝"
+            )
 
         # 添加批次标识（使用正确的批次编号）
         current_headers = headers.copy()
@@ -3834,7 +3838,9 @@ def send_to_ntfy(
             )
 
             if response.status_code == 200:
-                print(f"ntfy第 {actual_batch_num}/{total_batches} 批次发送成功 [{report_type}]")
+                print(
+                    f"ntfy第 {actual_batch_num}/{total_batches} 批次发送成功 [{report_type}]"
+                )
                 success_count += 1
                 if idx < total_batches:
                     # 公共服务器建议 2-3 秒，自托管可以更短
@@ -3854,7 +3860,9 @@ def send_to_ntfy(
                     timeout=30,
                 )
                 if retry_response.status_code == 200:
-                    print(f"ntfy第 {actual_batch_num}/{total_batches} 批次重试成功 [{report_type}]")
+                    print(
+                        f"ntfy第 {actual_batch_num}/{total_batches} 批次重试成功 [{report_type}]"
+                    )
                     success_count += 1
                 else:
                     print(
@@ -3869,19 +3877,26 @@ def send_to_ntfy(
                     f"ntfy第 {actual_batch_num}/{total_batches} 批次发送失败 [{report_type}]，状态码：{response.status_code}"
                 )
                 try:
-                    error_detail = response.text[:200]  # 只显示前200字符的错误信息
-                    print(f"错误详情：{error_detail}")
+                    print(f"错误详情：{response.text}")
                 except:
                     pass
 
         except requests.exceptions.ConnectTimeout:
-            print(f"ntfy第 {actual_batch_num}/{total_batches} 批次连接超时 [{report_type}]")
+            print(
+                f"ntfy第 {actual_batch_num}/{total_batches} 批次连接超时 [{report_type}]"
+            )
         except requests.exceptions.ReadTimeout:
-            print(f"ntfy第 {actual_batch_num}/{total_batches} 批次读取超时 [{report_type}]")
+            print(
+                f"ntfy第 {actual_batch_num}/{total_batches} 批次读取超时 [{report_type}]"
+            )
         except requests.exceptions.ConnectionError as e:
-            print(f"ntfy第 {actual_batch_num}/{total_batches} 批次连接错误 [{report_type}]：{e}")
+            print(
+                f"ntfy第 {actual_batch_num}/{total_batches} 批次连接错误 [{report_type}]：{e}"
+            )
         except Exception as e:
-            print(f"ntfy第 {actual_batch_num}/{total_batches} 批次发送异常 [{report_type}]：{e}")
+            print(
+                f"ntfy第 {actual_batch_num}/{total_batches} 批次发送异常 [{report_type}]：{e}"
+            )
 
     # 判断整体发送是否成功
     if success_count == total_batches:
